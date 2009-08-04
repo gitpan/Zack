@@ -1,0 +1,60 @@
+2009-05-19 14:16  cvs
+
+	* bin/zack: added option to mark as cached
+
+2009-01-06 11:12  cvs
+
+	* bin/zack: made debug on zack expand to sub modules
+
+2008-11-24 16:01  cvs
+
+	* bin/zack, lib/Zack/File2Text.pm, lib/Zack/File2Text/Base.pm,
+	  lib/Zack/File2Text/Cached.pm, t/11_testfull.t, t/99_cleanup.t:
+	  zack bin was not processing argvs cli properly
+
+2008-11-19 23:19  cvs
+
+	* lib/Zack/File2Text/Cached.pm: made sure sths are finished
+
+2008-11-19 16:32  cvs
+
+	* lib/: Zack.pm, Zack/File2Text.pm: added Zack which is really an
+	  alias to Zack::File2Text::Cached
+
+2008-11-14 17:01  cvs
+
+	* INSTALL, Makefile.PL, lib/Zack/File2Text.pm, t/09_file2text.t:
+	  adding basic html to text conversion
+
+2008-11-06 16:58  cvs
+
+	* checksetup-part-1.pl, lib/Zack/File2Text.pm, t/03_xls.t: added
+	  hackto exctract text from xls (excel) documents.
+
+2008-10-23 17:06  cvs
+
+	* t/11_testfull.t: testing in t/11 if mysqld is up
+
+2008-10-23 08:35  cvs
+
+	* t/14_basic_clitest.t: added basic test for bin/clis to make sure
+	  they dont bonk out, very very basic test via cli
+
+2008-10-17 11:53  cvs
+
+	* MANIFEST, Makefile.PL, checksetup.pl, lib/Zack/File2Text.pm,
+	  t/09_file2text.t, t/11_testfull.t: added checkfile.pl to help
+	  install and setup
+
+2008-10-16 18:00  cvs
+
+	* INSTALL, MANIFEST, Makefile.PL, README, bin/zack, bin/zack-cache,
+	  bin/zack-cache-setup, lib/Zack.pod, lib/zack.conf.pod,
+	  lib/Zack/File2Text.pm, lib/Zack/File2Text/Base.pm,
+	  lib/Zack/File2Text/Cached.pm, t/00_setup_bogus_files.t,
+	  t/01_cachetest.t, t/02_filenamesetc.t, t/09_file2text.t,
+	  t/11_testfull.t, t/4ae6c9b6a3962d0ee153385a6aebc3b7.txt,
+	  t/99_cleanup.t, t/bogusdata.pl, t/file2text.conf,
+	  t/mysql_credentials.conf, t/testdocs/entityprimer.doc,
+	  t/testdocs/hdreceipt.pdf: Initial revision
+

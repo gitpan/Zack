@@ -1,0 +1,35 @@
+INSTALL
+
+Run the checksetup files.
+
+./checksetup-part-1.pl
+./checksetup-part-2.pl
+
+
+
+# Image::OCR::Tesseract, download from cpan and read INSTALL.*
+tesseract
+
+# yum:
+
+ImageMagick-perl
+xpdf
+
+---------
+
+setting up mysql
+imagine your settings are:
+/etc/zac.conf :
+---
+DBHOST: localhost
+DBUSER: fai
+DBPASSWORD: r4e3w2q1
+DBNAME: fai
+
+
+use the mysql cli..
+
+create database fai;
+grant all on fai.* to user fai identified by 'r4e3w2q1';
+
+

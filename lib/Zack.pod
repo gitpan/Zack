@@ -1,0 +1,207 @@
+=pod
+
+=head1 NAME
+
+Zack
+
+=head1 DESCRIPTION
+
+Zack is a nexus of text extraction utilities.
+We use PDF::OCR2, antiword, etc etc.. to convert various file types into text output.
+
+Also, we cache the output to a database, associated via md5sum.
+Again, this is a very important concept to note; we associate text output with sum of the original content.
+If you run zack against an image,  use ocr, and cache the output to that file's md5 sum. If the file does not
+change, we do not regenerate output.
+You can 'uncache' a file.
+
+So if the file contebt does not change, we don't regenerate text.
+This is crucial in ocr procedures, which are timely.
+
+This package is comprised of various scripts and perl modules.
+
+=head2 Why cache text output
+
+Two reasons.
+
+=over 4
+
+=item expense
+
+Some of the text extraction methods are timely, like ocr.
+Why run the same procedure twice on the same data?
+
+=item information
+
+If you run zack on a multitude of files, now you have a rich database of information for what files have what 'text' inside them. Without changing the files themselves. 
+To make use of this, coordination must happen together with L<Alister>, for example.
+This will be accomplished in another project.
+
+=back
+
+
+=head1 CLI
+
+Zack is primarily intended to be used via the command line.
+
+=head2 zack
+
+The main interface is the executable 'zack'.
+
+=head3 Getting text out of files
+
+As mentioned, zack aims to be a nexus of text extraction methods.
+You can use ocr to extract text from images and pdfs, antiword to get text ot of 
+
+=head3 Caching output
+
+Whenever you use zack to extract text, the output is cached automatically to the database.
+To cache text output for a doc file:
+
+   zack ./file.doc
+
+
+
+=head3 Uncaching a file
+
+If for some reason a file's text output is cached and you don't want it so, you can ask zack to uncache.
+
+You can remove a cache entry by:
+
+   zack -x MD5SUM
+
+Where MD5SUM is a sum string like '87c1e9938cd60077f3cdfbda765d8695'.
+You can alternatively point to a file on disk, and zack resolves md5sum behind the scenes:
+
+   zack -x PATH
+
+Where PATH is like './file.pdf',
+
+The zack command line argument parsing is 'smart', you can mix up sums and paths at will.
+
+   zack -x ~/file1.tif 87c1e9938cd60077f3cdfbda765d8695 ~/file2.pdf
+
+=head3 zack comand line options
+
+Usage: zack [OPTION] [FILE|SUM]..
+Extract text from various file formats and mime types, caching output.
+
+   -h                help
+   -d                debug on
+   -q                quiet
+   -a path           abs config file, defaul is /etc/zack.conf
+   -x                delete on
+   -o                cache override on
+   -S                stats, also shows what types we can get text from.   
+   -c                check if cached
+   -J                files are sum named injectfiles, not regular files
+
+=head3 zack usage examples
+
+Get the text inside file to stdout
+
+      zack ./files.txt
+
+Get whatever's cached for sum
+
+      zack 87c1e9938cd60077f3cdfbda765d8695
+
+Just make sure files are cached
+
+      zack -q ./files*
+
+Cache again, getting rid of previous cache
+      zack -o -q ./files*
+
+Asking if file or sum is cached
+
+      zack -c ./files*
+      zack -c 87c1e9938cd60077f3cdfbda765d8695
+      zack -c 87c1e9938cd60077f3cdfbda765d8695 ./file1.txt ./files2* 87c1e9938cd6a077f3cdfbda76528695
+
+Remove cache entries by file path(s) or sum(s)
+
+      zack -x 87c1e9938cd60077f3cdfbda765d8695
+      zack -x ./files*
+      zack -x 87c1e9938cd60077f3cdfbda765d8695 ./files*
+
+=head3 Injectfiles
+
+An injectfile is a text file named after the sum of the source document.
+The content is the text content of the file.
+
+If your source document is a pdf called
+
+      filename: ~/x.pdf 
+      
+The sum of that file is
+
+      sum: 87c1e9938cd60077f3cdfbda765d8695
+
+And the content is
+
+      output: 'This is a sentence'
+
+Create a file called
+
+      /tmp/87c1e9938cd60077f3cdfbda765d8695.txt
+
+In which you place 'This is a sentence'.
+
+   That's a 'injectfile' in regards to zack.
+
+
+=head4 Using an injectfile
+
+The target must be a text file whose filename has a sum...
+Here we use the 'x' option flag to delete the file after successful insert.
+
+      zack -J -x 7099ba7e5103429c3c51c998aee05dec.txt 
+
+If you have a directory with a million file entries.. 
+
+      zack -J -x /path/to/dir
+
+This process checks if the file sum is already cached. If so, skips and leaves the file.
+If you want to overrite possible previous caches, use the -o flag.
+      
+      zack -J -x -o /path/to/dir
+
+
+=head4 CAVEAT
+
+Injectfiles must have a md5sum as part of filename, 32 char a-f0-9.
+You must specify the -J flag to treat file arguments as injectfiles.
+
+=head1 SEE ALSO
+
+L<Zack::File2Text>
+
+
+=head1 AUTHOR
+
+Leo Charre leocharre at cpan dot org
+
+=head1 COPYRIGHT
+
+Copyright (c) Leo Charre. All rights reserved.
+
+=head1 LICENSE
+
+This program is free software; you can redistribute it and/or modify it under the same terms and conditions as Perl itself.
+
+This means that you can, at your option, redistribute it and/or modify it under either the terms the GNU Public License (GPL) version 1 or later, or under the Perl Artistic License.
+
+See http://dev.perl.org/licenses/
+
+=head1 DISCLAIMER
+
+THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
+
+Use of this software in any way or in any form, source or binary, is not allowed in any country which prohibits disclaimers of any implied warranties of merchantability or fitness for a particular purpose or any disclaimers of a similar nature.
+
+IN NO EVENT SHALL I BE LIABLE TO ANY PARTY FOR DIRECT, INDIRECT, SPECIAL, INCIDENTAL, OR CONSEQUENTIAL DAMAGES ARISING OUT OF THE USE OF THIS SOFTWARE AND ITS DOCUMENTATION (INCLUDING, BUT NOT LIMITED TO, LOST PROFITS) EVEN IF I HAVE BEEN ADVISED OF THE POSSIBILITY OF SUCH DAMAGE
+
+=cut
+
+

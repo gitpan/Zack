@@ -1,0 +1,25 @@
+=pod
+
+=head1 NAME
+
+zack.conf
+
+=head1 DESCRIOPTION
+
+The config file has mysql credentials.
+This is a YAML file.
+
+=head1 /etc/zack.conf
+
+   ---
+   DBHOST: 192.168.0.10
+   DBUSER: oober
+   DBPASSWORD: muggles
+   DBNAME: zack
+
+=head1 SEE ALSO
+
+Zack
+YAML
+
+=cut

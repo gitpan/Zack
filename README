@@ -1,0 +1,7 @@
+
+
+type  extractor
+
+pdf   PDF::OCR
+doc   antiword
+html  html2txt

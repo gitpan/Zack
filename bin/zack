@@ -1,0 +1,432 @@
+#!/usr/bin/perl
+use strict;
+use lib './lib';
+use vars qw($VERSION @FILES $FILES_COUNT @SUMS $SUMS_COUNT @INJECTFILES 
+$INJECTFILES_COUNT $z @TRASH $FILES_PROCESSED_OK);
+use Zack::File2Text::Cached;
+use Getopt::Std::Strict 'xdhqcoa:SJb:MC';
+$VERSION = sprintf "%d.%02d", q$Revision: 1.12 $ =~ /(\d+)/g;
+$FILES_PROCESSED_OK = 0;
+
+init();
+
+sub init {
+   $opt_h and print STDERR usage() and exit;
+   $Zack::File2Text::DEBUG = 1 if $opt_d;
+   $PDF::OCR2::DEBUG = 1 if $opt_d;
+   $PDF::Burst::DEBUG = 1 if $opt_d;
+   $Image::OCR::Tesseract::DEBUG = 1 if $opt_d;
+   $opt_a ||= '/etc/zack.conf';
+
+   $opt_C and $PDF::OCR2::CHECK_PDF = 1;
+   if ($opt_b){      
+      $PDF::Burst::BURST_METHOD = 
+         $opt_b eq 'C' ? 'CAM_PDF' :
+         $opt_b eq 'P' ? 'PDF_API2' :
+         $opt_b eq 'K' ? 'pdftk' :
+         die("-b option $opt_b not one of C P K");
+   }
+   
+   
+   
+   $z = Zack::File2Text::Cached->new({ abs_conf => $opt_a });
+
+   debug("abs conf $opt_a");
+   debug("override: $opt_o");
+   debug("burst method: $PDF::Burst::BURST_METHOD");
+   _resolve_argv_FILES_and_SUMS();
+}
+
+
+Stats();
+
+Process_SUMS();
+
+Process_FILES();
+
+Process_INJECTFILES();
+
+
+exit;
+
+
+END {
+   
+   debug( sprintf "Success %s/%s ", $FILES_PROCESSED_OK, $FILES_COUNT );
+}
+
+
+
+
+
+sub usage {qq{Usage: $0 [OPTION] [FILE|SUM]..
+Extract text from various file formats and mime types, caching output.
+
+   -h                help
+   -d                debug on
+   -q                quiet
+   -a path           abs config file, defaul is /etc/zack.conf
+   -x                delete on
+   -o                cache override on
+   -S                stats, also shows what types we can get text from.   
+   -c                check if cached
+   -J                files are sum named injectfiles, not regular files
+   -b [CPK]          PDF::Burst method: (C)am_pdf (P)df_api2 pdft(K)
+   -M                mark as cached (for bad files, etc, or files you dont want cached)
+   -C                if pdf, check for correctness before performing ocr
+
+For usage examples and discussion, try 'man Zack'.
+}}
+
+
+# BEGIN RUNMODES
+# ===========================================
+
+
+
+
+sub Stats {
+   $opt_S or return 1;
+
+   say("Zack $VERSION\nTotal Records: ".$z->records_count.'.');
+   my @types  = Zack::File2Text::known_exts();
+   printf STDERR "Known exts: @types\n";
+   exit;
+
+}
+
+
+
+
+
+
+sub Process_SUMS {
+   
+   debug("Sums selected count: $SUMS_COUNT.");
+   $SUMS_COUNT or return;
+
+   for my $sum (@SUMS){
+      my $cached = $z->exists($sum);
+
+      if ($opt_x){ # want to delete this sum or record
+         debug("Was cached? $cached");
+         $cached or next;
+         debug("deleting $sum ". $z->delete($sum) );
+         next;
+      }
+      
+      if ($opt_c){ # we just want to know if it's cached
+         print STDERR "$sum $cached\n";
+         next;
+      }
+      
+      # else we want the text
+      my $text = $z->get($sum);
+      say("$sum\n");
+      print "$text\n";
+   }
+}
+
+sub _mode {
+   $opt_c ? '-c asking if cached' :
+   $opt_x ? '-x delete from cache' :
+   $opt_q ? '-q just make sure is cached, quiet' :
+   $opt_M ? '-M mark as cached' :
+   'normal get text operation';
+}
+
+
+sub Process_FILES {
+   
+   debug("Files selected: $FILES_COUNT.");
+   $FILES_COUNT or return;
+
+   debug("conf: ". $z->abs_conf );
+
+   # may be using cached override option
+   debug("Cache override is on? ".( $z->cache_override($opt_o) ? 'Yes.' : 'No.'));
+   
+   debug("Mode? "._mode());
+
+   for my $abs_file (@FILES){
+      require Zack::File2Text;
+      Zack::File2Text::have_extractor($abs_file) or next;
+      
+
+      if ( $opt_c ){
+         #debug("# A ) $abs_file asking if is cached");
+         printf STDERR "$abs_file %s\n", $z->exists($abs_file);
+         $FILES_PROCESSED_OK++;
+      }
+
+      elsif ( $opt_x ){
+         #debug("# B ) $abs_file delete from cache");
+         $z->delete($abs_file) and $FILES_PROCESSED_OK++;
+         warn "Removed $abs_file.\n";
+      }
+
+      elsif ($opt_q){
+         #debug("# C ) $abs_file making sure is cached");
+         $z->file2text($abs_file) and $FILES_PROCESSED_OK++;
+      }
+
+      elsif ($opt_M){
+         #debug("# C.1 ) $abs_file marking as cached");
+         $z->set($abs_file,' ');
+      }
+
+      else {     
+         #debug("# D) $abs_file getting text output");
+         my $text = $z->file2text($abs_file) and $FILES_PROCESSED_OK++;
+         print "$text\n";
+      }
+      debug("Done with $abs_file.");
+      debug_spacer();
+   }
+
+}
+
+
+# if files are sum.content files
+sub Process_INJECTFILES {
+
+   debug("InjectFiles selected: $INJECTFILES_COUNT.");
+   $INJECTFILES_COUNT or return;
+
+   debug("conf: ". $z->abs_conf );
+
+
+   
+
+
+   # may be using cached override option
+   debug("Cache override is on? ".( $z->cache_override($opt_o) ? 'Yes.' : 'No.'));
+
+   for my $abs_file (@FILES){
+      my ($abs_file, $sum, $text);
+
+      $abs_file=~/\b([0-9a-f]{32})\b/ or warn("File '$abs_file' is not an injectfile.") and next;
+      $sum = $1;
+
+
+      if ( $opt_o ){ # is override on? then ignore if already cached
+         debug("Override on, doing regardless..");
+         $text = slurp($abs_file);
+         $z->set($sum,$text);
+         $FILES_PROCESSED_OK++;
+         push @TRASH, $abs_file;
+         next;
+      }
+
+      elsif( $z->cached($sum) ) { # override not on, if already cached.. dont slurp and try to insert again
+         debug("Already cached $sum, $abs_file, skipping and will not delete.\n");
+         next;
+      }
+      
+      else { # then slurp and cache         
+         $text = slurp($abs_file);
+         $z->set($sum,$text) and $FILES_PROCESSED_OK++;
+
+         push @TRASH, $abs_file;         
+         next;
+      }
+   }
+
+      
+
+
+
+}
+
+# =============================================================================
+# END RUNMODES
+
+
+
+
+
+sub debug_spacer { $opt_d or return 1; printf STDERR "%s\n\n", '-'x60; }
+
+
+# BEGIN RESOLVE ARGS
+# =================================================================================================
+
+# if arg is just one, and it's a dir, assume we want all files therein
+sub argv_as_files_onedir {
+   @ARGV and scalar @ARGV or return;
+   
+   scalar @ARGV == 1 or return;
+
+   my $arg = shift @ARGV; # modify it
+   if ( -d $arg ){
+
+      require LEOCHARRE::Dir;
+      my @files = LEOCHARRE::Dir::lsfa($arg);
+      return @files;  
+   }
+
+
+   # back to normal
+   push @ARGV, $arg;
+   return;
+}
+
+
+# takes out any args on cli that are files on disk, leaves rest alone
+sub argv_as_files {
+
+   @ARGV and scalar @ARGV or return;
+
+   my @_ARGV;
+   my @files;
+   while ( my $arg = shift @ARGV ){
+
+      unless (-f $arg ){
+         push @_ARGV, $arg;
+         next;
+      }
+
+      if ( my $abs = Cwd::abs_path($arg) ){
+         push @files, $abs;
+      }
+      else {   # not a file on disk arg
+         debug("not file on disk: '$arg'");
+         push @_ARGV, $arg;
+      }
+   }
+   @ARGV = @_ARGV;
+   return @files;
+}
+
+# takes out sum args
+sub argv_as_sums {
+
+   @ARGV and scalar @ARGV or return;
+
+   my @sums;
+   my @_ARGV;
+   while ( my $arg = shift @ARGV ){
+      if ( $arg=~/^[a-f0-9]{32}$/ ){
+         debug("sum $arg");
+         push @sums, $arg;
+      }
+      else {
+         debug("dunno $arg");
+         push @_ARGV, $arg;
+      }
+   }
+   @ARGV = @_ARGV;
+   return @sums;
+}
+
+sub _resolve_argv_FILES_and_SUMS {
+
+   @FILES = argv_as_files_onedir() || argv_as_files();
+
+   # are the files supposed to be data files named after sums
+   if ($opt_J){
+      @INJECTFILES = @FILES;
+      @FILES = undef;
+   }
+
+   @SUMS  = argv_as_sums();
+
+   # any left over arguments?
+   for (@ARGV){
+      say("Don't know what to do with '$_', not a sum, not file on disk, not one dir arg with files.");
+   }
+         
+   $FILES_COUNT = @FILES ? scalar @FILES : 0;
+   $SUMS_COUNT  = @SUMS  ? scalar @SUMS  : 0;
+   $INJECTFILES_COUNT = @INJECTFILES ? scalar @INJECTFILES : 0;
+   debug("Files resolved: $FILES_COUNT");
+   debug("Sums: $SUMS_COUNT");
+   debug("Injectfiles: $INJECTFILES_COUNT");
+}
+
+# END RESOLVE ARGS
+# =================================================================================================
+
+
+
+
+
+
+
+
+
+
+
+
+
+# BEGIN MESSAGES 
+# ====================================
+sub debug { print STDERR " # @_\n" if $opt_d; 1 }
+
+
+sub say {
+   $opt_q and return 1;
+   my $msg = "@_";
+   #$msg=~/^[A-Z]/ and $msg = "\n$msg";
+   $msg=~/[^\.]\.$|\d$/ and $msg.="\n";
+   print STDERR $msg;   
+}
+
+# END MESSAGES
+# ==========================================
+
+
+
+
+END { 
+   
+   $z->dbh->disconnect if $z;
+   if ($opt_x){ unlink @TRASH; }
+}
+
+
+
+
+
+
+
+
+__END__
+
+
+
+
+=pod
+sub CacheDump {
+   $opt_P or return;
+
+   print 'will be too slow';
+   exit;
+
+   $opt_P = $Zack::File2Text::Cached::ABS_CACHE;
+
+   -d $opt_P or die("'$opt_P' not a dir");
+
+   say("Dumping to $opt_P, every . is 100 files.");
+
+   
+   my $table_name = $Zack::File2Text::Cached::TABLE_NAME;
+   debug('preparing');
+   my $sth = $t->dbh->prepare("SELECT sum,txt FROM $table_name");
+   debug('executing');
+   $sth->execute;
+
+   debug('dumping');
+   my $i;
+   while ( my $r = $sth->fetchrow_arrayref ){
+      Zack::File2Text::Cached::_fs_set(@$r);
+      ++$i == 100 and print STDERR '.' and $i=0;
+   }
+
+   $sth->finish;
+
+   exit;
+}
+=cut
+
+
